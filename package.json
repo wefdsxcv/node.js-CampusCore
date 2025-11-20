@@ -1,20 +1,16 @@
 {
-  "name": "campuscore-server-project",
+  "name": "campus-core-server",
   "version": "1.0.0",
-  "main": "index.js",
-  "type": "module",
+  "main": "server.js",      
+  "type": "module",          
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.81.1",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^4.x.x",
+    "cors": "^2.x.x",
+    "dotenv": "^16.x.x",
+    "body-parser": "^1.x.x",
+    "@supabase/supabase-js": "^2.x.x"
   }
 }
