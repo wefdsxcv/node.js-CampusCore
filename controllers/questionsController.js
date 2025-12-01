@@ -249,17 +249,19 @@ export async function deletequestion(req, res) {
 
     if (!token) return res.status(401).json({ error: "ログインしてください" });
 
-    // ② ユーザー特定
+    // ② ユーザー特定(supabase秘密鍵でjwtトークンと検証。正しい場合、信頼。)
+    //オブジェクト（data)の中のオブジェクト(user)をuserという変数に入れる。authErrorはエラーオブジェクト
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return res.status(401).json({ error: "トークンが無効です" });
 
     // ③ 削除実行
-    // .eq('user_id', user.id) を付けることで、自分の投稿以外は削除されないようにガードします
+    // Equal（イコール）」の略で、「〜と等しい」 という条件を指定するフィルタです。 SQLでの意味： WHERE カラム名 = 値
+    //questionidはフロントから送られてきた質問id
     const { data, error } = await supabase
       .from("questions")
       .delete()
       .eq("id", questionId)
-      .eq("user_id", user.id) 
+      .eq("user_id", user.id)//をここで参照していると、、、questionテーブルの"user_id カラムが一致するものだけ消すと 
       .select(); // ★ select() を付けることで「削除されたデータ」が返ってきます
 
     if (error) throw error;
