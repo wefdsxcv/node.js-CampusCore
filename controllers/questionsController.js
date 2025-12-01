@@ -232,3 +232,49 @@ export async function postReply(req, res) {
     res.status(500).json({ error: "返信の投稿に失敗しました" });
   }
 }
+
+// controllers/questionsController.js の一番下
+
+// ---------------------------------------------------
+// 6. 質問削除 (Delete Question)
+// URL: DELETE /questions/:id
+// ---------------------------------------------------
+export async function deletequestion(req, res) {
+  try {
+    const questionId = req.params.id; // URLの :id 部分を取得
+
+    // ① ヘッダーからトークン取得
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: "ログインしてください" });
+
+    // ② ユーザー特定
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "トークンが無効です" });
+
+    // ③ 削除実行
+    // .eq('user_id', user.id) を付けることで、自分の投稿以外は削除されないようにガードします
+    const { data, error } = await supabase
+      .from("questions")
+      .delete()
+      .eq("id", questionId)
+      .eq("user_id", user.id) 
+      .select(); // ★ select() を付けることで「削除されたデータ」が返ってきます
+
+    if (error) throw error;
+
+    // ④ 結果確認
+    // dataが空っぽの場合＝「IDが存在しない」か「他人の投稿だった（user_idが不一致）」
+    if (!data || data.length === 0) {
+      return res.status(403).json({ error: "削除権限がないか、すでに削除されています" });
+    }
+
+    // 成功
+    res.status(200).json({ message: "削除しました" });
+
+  } catch (err) {
+    console.error("削除失敗:", err);
+    res.status(500).json({ error: "削除に失敗しました" });
+  }
+}

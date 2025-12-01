@@ -5,8 +5,9 @@ import {
   getAllQuestions,
   getQuestionsByTag,
   postQuestion,
-  getReplies,   // 追加
-  postReply,    // 追加
+  getReplies,   // 
+  postReply,    // 
+  deletequestion //投稿削除用
 } from "../controllers/questionsController.js";
 
 //express.Router() で Routerオブジェクト
@@ -26,6 +27,9 @@ router.get("/:id/replies", getReplies);
 
 // POST /questions/replies (返信を投稿)
 router.post("/replies", postReply);
+
+// Flutter側: http.delete(.../questions/$id) に合わせる
+router.delete("/:id", deletequestion);
 
 
 //route定義をまとめたものをrouterとしてexportしておく（このファイルは router をデフォルトエクスポート している。デフォルトエクスポートの場合、インポート側で好きな名前をつけられる）
