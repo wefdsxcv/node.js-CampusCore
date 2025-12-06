@@ -6,9 +6,9 @@ import { supabase } from "../db/supabaseClient.js";
 // ---------------------------------------------------
 export async function getAllQuestions(req, res) {
   try {
-    // questionsテーブルからデータを取得
-    // リレーション: tags (タグ名) と user_profiles (投稿者名) も結合して取得
-    const { data, error } = await supabase
+    // A. まず質問データ一覧を取得
+    // selectの中に 'like_count' が含まれるので、特別記述しなくても '*' で取得されます
+    const { data: questions, error } = await supabase
       .from("questions")
       .select(`
         *,
@@ -16,17 +16,54 @@ export async function getAllQuestions(req, res) {
           tag:tags(name)
         ),
         profile:user_profiles(name)
-      `)//user_profile(nameカラムから取得している)トリガー関数の処理でauth.にuser idが入った瞬間、入力欄のnameと一緒にprofile_userテーブルにinsertしてる
+      `)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    // Flutterが扱いやすい形にデータを整形
-    // ネストしたオブジェクト (tags -> tag -> name) をフラットな配列 (['Flutter', 'Dart']) に変換
-    const formattedData = data.map(post => ({
+    // -------------------------------------------------
+    // B. 「自分がイイネした質問ID」のリストを作る
+    // -------------------------------------------------
+    let myLikedQuestionIds = [];
+
+    // トークンがある場合（ログインしている場合）のみチェック
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      // ユーザー特定
+      const { data: { user } } = await supabase.auth.getUser(token);
+      
+      if (user) {
+        // likesテーブルから、自分のuser_idに紐づくquestion_idだけ取ってくる
+        const { data: myLikes } = await supabase
+          .from("likes")
+          .select("question_id")
+          .eq("user_id", user.id);
+        
+        // [{question_id: 1}, {question_id: 5}] 
+        //   ↓ mapで変換
+        // [1, 5] というシンプルな配列にする
+        if (myLikes) {
+          myLikedQuestionIds = myLikes.map(like => like.question_id);
+        }
+      }
+    }
+
+    // -------------------------------------------------
+    // C. データ整形 (Flutterに送る形を作る)
+    // -------------------------------------------------
+    const formattedData = questions.map(post => ({
       ...post,
-      tags: post.tags ? post.tags.map(t => t.tag.name) : [], // タグ配列作成
-      user_name: post.profile ? post.profile.name : '名無し'   // 名前を取り出す
+      tags: post.tags ? post.tags.map(t => t.tag.name) : [],
+      user_name: post.profile ? post.profile.name : '名無し',
+      
+      // ★ここが追加ポイント
+      // DBのカラム(like_count)をそのまま使う。NULLなら0にする。
+      like_count: post.like_count ?? 0, 
+      
+      // さっき作ったIDリストに含まれていれば true、なければ false
+      is_liked: myLikedQuestionIds.includes(post.id)
     }));
 
     res.status(200).json(formattedData);
@@ -36,7 +73,6 @@ export async function getAllQuestions(req, res) {
     res.status(500).json({ error: "質問一覧の取得に失敗しました" });
   }
 }
-
 // ---------------------------------------------------
 // 2. タグ検索 (Get Questions By Tag)
 // ---------------------------------------------------
@@ -278,5 +314,42 @@ export async function deletequestion(req, res) {
   } catch (err) {
     console.error("削除失敗:", err);
     res.status(500).json({ error: "削除に失敗しました" });
+  }
+}
+
+
+// ---------------------------------------------------
+// 7. イイネの切り替え (Toggle Like)　toggle_like(_user_id uuid, _question_id bigint) db関数を作ったので、
+// URL: POST /questions/:id/like
+// ---------------------------------------------------
+export async function toggleLike(req, res) {
+  try {
+    // URLの :id は文字列で来るので、DBに合わせて数値(Int)に変換します
+    const questionId = parseInt(req.params.id);
+    
+    // ① トークンチェック（おなじみの流れ）
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: "ログインしてください" });
+
+    // ② ユーザー特定
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "無効なトークン" });
+
+    // ③ Supabaseの関数 (RPC) を呼び出す
+    // .rpc('関数名', { 引数名: 値 }) という書き方です
+    const { data, error } = await supabase.rpc('toggle_like', {
+      _user_id: user.id,
+      _question_id: questionId
+    });
+
+    if (error) throw error;
+
+    // DB関数から返ってきた { "liked": true } などをそのままフロントへ返します
+    res.status(200).json(data);
+
+  } catch (err) {
+    console.error("イイネ処理失敗:", err);
+    res.status(500).json({ error: "処理に失敗しました" });
   }
 }
