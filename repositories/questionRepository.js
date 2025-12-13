@@ -47,5 +47,14 @@ export const questionRepository = {
       .eq("id", questionId)
       .eq("user_id", userId)
       .select();
+  },
+
+  // question_idを元に検索。　取得。
+  async findById(id) {
+    return await supabase
+    .from("questions")
+    .select("*")
+    .eq("id", id)
+    .single();
   }
 };

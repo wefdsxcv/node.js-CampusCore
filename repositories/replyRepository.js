@@ -13,7 +13,7 @@ export const replyRepository = {
       .order("created_at", { ascending: true });
   },
 
-  // 返信作成
+  // 返信作成     不要
   async create(text, questionId, userId) {
     return await supabase
       .from("replies")
@@ -24,5 +24,18 @@ export const replyRepository = {
       }])
       .select()
       .single();
+  },
+  // ★ [追加] トランザクション付き作成 (返信 + Outbox)
+  // DBの create_reply_with_outbox 関数を呼び出します
+  async createWithOutbox(text, questionId, userId, outboxPayload) {
+    const { data, error } = await supabase.rpc('create_reply_with_outbox', {
+      _text: text,
+      _question_id: questionId,
+      _user_id: userId,
+      _outbox_payload: outboxPayload // 通知不要なら null を渡す
+    });
+
+    if (error) throw error;
+    return { data, error: null }; // insert().select() と形を合わせるため
   }
 };

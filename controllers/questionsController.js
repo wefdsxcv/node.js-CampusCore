@@ -100,7 +100,7 @@ export async function postReply(req, res) {
     // バリデーション
     if (!text || !question_id) return res.status(400).json({ error: "データが不足しています" });
 
-    const data = await postReplyUsecase(text, question_id, user.id);
+    const data = await postReplyUsecase(text, question_id, user.id);//関数呼び出し。
     res.status(201).json(data);
   } catch (err) {
     console.error("返信投稿失敗:", err);
@@ -113,7 +113,7 @@ export async function postReply(req, res) {
 // ---------------------------------------------------
 export async function deletequestion(req, res) {
   try {
-    const questionId = req.params.id;
+    const questionId = req.params.id;//クエリパラメータでフロントから送られてきたものを取得。
 
     // Auth check
     const user = await getAuthenticatedUser(req);
