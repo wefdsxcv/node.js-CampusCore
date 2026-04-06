@@ -5,8 +5,12 @@ export async function toggleLikeUsecase(userId, questionId) {
   const { data, error } = await likeRepository.toggleLike(userId, questionId);
   if (error) throw error;
 
-  // ★ TODO: ここに通知キューへのJob追加処理を書く (Step 3で実装予定)
-  // RPC側での通知作成をやめ、ここでQueueに入れる設計に変更予定
+  // 👇 ここがキュー投入 Queue.add()でjob追加."sendLikeNotification"はjob名
+  await notificationQueue.add("sendLikeNotification", {
+    //jobのデータ worker側で job.data.userId で受け取れる。
+    userId,
+    questionId,
+  });
 
   return data;
 }
