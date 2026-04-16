@@ -2,3 +2,4 @@
 .env
 #npmでインストールしたパッケージ
 node_modules/
+

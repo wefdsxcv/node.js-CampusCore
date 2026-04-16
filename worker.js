@@ -1,18 +1,13 @@
 // worker.js
 import { Worker } from "bullmq";
-import nodemailer from "nodemailer";
+import { Resend } from 'resend';
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Create a transporter using SMTP
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-    },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+
 
 //bullmqのworkerは
 //node worker.js と起動した瞬間から内部でjobがないか無限ループしている。
@@ -22,16 +17,16 @@ const worker = new Worker(
   async (job) => {
     //job名を指定して
     if (job.name === "sendLikeNotification") {
-    const { questionId } = job.data;
+     const { userId ,questionId } = job.data;
+     const result = await resend.emails.send({
+        from: "onboarding@resend.dev",   // ← テスト用
+        to: process.env.TEST_Gmail,     // ← ここに送信先
+        subject: "Resend テスト通知",
+        text: `${userId}さんに、質問 ${questionId} にいいねされました！`,
+      });
 
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: "target@example.com",
-      subject: "いいね通知",
-      text: `質問 ${questionId} にいいねしました！`,
-    });
-
-    console.log("メール送信完了");
+      console.log("メール送信完了（Resend）", result);
+   
     }
   },
   {
